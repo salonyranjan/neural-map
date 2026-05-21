@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Neural Portfolio · Salony Ranjan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#050510;font-family:'JetBrains Mono',monospace}
+  canvas{display:block}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .corner{position:absolute;width:22px;height:22px}
+  .corner.tl{top:14px;left:14px;border-top:1px solid #00ffcc44;border-left:1px solid #00ffcc44}
+  .corner.tr{top:14px;right:14px;border-top:1px solid #00ffcc44;border-right:1px solid #00ffcc44}
+  .corner.bl{bottom:14px;left:14px;border-bottom:1px solid #00ffcc44;border-left:1px solid #00ffcc44}
+  .corner.br{bottom:14px;right:14px;border-bottom:1px solid #00ffcc44;border-right:1px solid #00ffcc44}
+  #brand{position:absolute;top:28px;left:32px}
+  #brand .label{font-size:9px;letter-spacing:.35em;color:#00ffcc66;text-transform:uppercase;margin-bottom:6px}
+  #brand .title{font-size:22px;font-weight:700;color:#fff;font-family:'Space Grotesk',sans-serif;letter-spacing:-.01em}
+  #brand .sub{font-size:10px;color:#ffffff33;margin-top:4px;letter-spacing:.1em}
+  #stats{position:absolute;top:28px;right:32px;text-align:right}
+  #stats .time{font-size:10px;color:#ffffff22;letter-spacing:.15em;margin-bottom:4px}
+  #stats .fps{font-size:9px;letter-spacing:.2em}
+  #legend{position:absolute;bottom:32px;left:32px}
+  #legend .leg-title{font-size:9px;color:#ffffff22;letter-spacing:.25em;text-transform:uppercase;margin-bottom:10px}
+  .leg-item{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .leg-dot{width:6px;height:6px;border-radius:50%}
+  .leg-name{font-size:10px;color:#ffffff44;letter-spacing:.1em;text-transform:capitalize}
+  #controls{position:absolute;bottom:32px;right:32px;text-align:right}
+  #controls .ctrl-title{font-size:9px;color:#ffffff22;letter-spacing:.25em;text-transform:uppercase;margin-bottom:10px}
+  .ctrl-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:5px}
+  .ctrl-key{font-size:8px;color:#00ffcc55;border:1px solid #00ffcc22;padding:2px 6px;border-radius:3px;letter-spacing:.1em}
+  .ctrl-act{font-size:9px;color:#ffffff22}
+  #tooltip{
+    position:fixed;pointer-events:none;z-index:20;
+    font-family:'JetBrains Mono',monospace;
+    opacity:0;transition:opacity .15s ease;
+  }
+  #tooltip.show{opacity:1}
+  .tip-box{
+    background:rgba(5,5,16,.95);
+    border-radius:6px;padding:12px 16px;
+    min-width:200px;max-width:260px;
+    backdrop-filter:blur(20px);
+  }
+  .tip-cat{font-size:9px;letter-spacing:.25em;text-transform:uppercase;margin-bottom:6px}
+  .tip-name{font-size:13px;color:#fff;font-weight:600;margin-bottom:6px;line-height:1.3;font-family:'Space Grotesk',sans-serif}
+  .tip-desc{font-size:10px;color:#ffffff66;line-height:1.5;margin-bottom:8px}
+  .tip-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+  .tip-tag{font-size:8px;padding:2px 6px;border-radius:3px;letter-spacing:.1em}
+  .tip-cta{font-size:9px;color:#ffffff22;letter-spacing:.1em}
+  #scanline{
+    position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="scanline"></div>
+<div id="hud">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+  <div id="brand">
+    <div class="label">Neural Portfolio</div>
+    <div class="title">Knowledge Graph</div>
+    <div class="sub" id="node-count">— nodes · force-directed · 3D</div>
+  </div>
+  <div id="stats">
+    <div class="time" id="clock"></div>
+    <div class="fps" id="fps-counter">60 FPS</div>
+  </div>
+  <div id="legend">
+    <div class="leg-title">Categories</div>
+    <div id="legend-items"></div>
+  </div>
+  <div id="controls">
+    <div class="ctrl-title">Controls</div>
+    <div class="ctrl-row"><span class="ctrl-act">Rotate</span><span class="ctrl-key">Drag</span></div>
+    <div class="ctrl-row"><span class="ctrl-act">Zoom</span><span class="ctrl-key">Scroll</span></div>
+    <div class="ctrl-row"><span class="ctrl-act">Pan</span><span class="ctrl-key">Right drag</span></div>
+    <div class="ctrl-row"><span class="ctrl-act">Open link</span><span class="ctrl-key">Click node</span></div>
+  </div>
+</div>
+<div id="tooltip"><div class="tip-box">
+  <div class="tip-cat" id="tip-cat"></div>
+  <div class="tip-name" id="tip-name"></div>
+  <div class="tip-desc" id="tip-desc"></div>
+  <div class="tip-tags" id="tip-tags"></div>
+  <div class="tip-cta">↗ click to open</div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const RAW = [
+  {name:"anime-grid",complexity_score:283552.6,url:"https://github.com/salonyranjan/anime-grid"},
+  {name:"BitFlow",complexity_score:30226,url:"https://github.com/salonyranjan/BitFlow"},
+  {name:"CineNative",complexity_score:21319.1,url:"https://github.com/salonyranjan/CineNative"},
+  {name:"ct-patient-data-dashboard",complexity_score:277785.7,url:"https://github.com/salonyranjan/ct-patient-data-dashboard"},
+  {name:"frontend-ResQplate-",complexity_score:116924.5,url:"https://github.com/salonyranjan/frontend-ResQplate-"},
+  {name:"GTA-VI",complexity_score:226218.7,url:"https://github.com/salonyranjan/GTA-VI"},
+  {name:"MediQuery.ai",complexity_score:128056.3,url:"https://github.com/salonyranjan/MediQuery.ai"},
+  {name:"Mocktail",complexity_score:289602.7,url:"https://github.com/salonyranjan/Mocktail"},
+  {name:"OpenShelf-E2E",complexity_score:193883,url:"https://github.com/salonyranjan/OpenShelf-E2E"},
+  {name:"PageWhisper",complexity_score:76032.9,url:"https://github.com/salonyranjan/PageWhisper"},
+  {name:"ResQPlate",complexity_score:5088.7,url:"https://github.com/salonyranjan/ResQPlate"},
+  {name:"Retail-Customer-Insights-Dashboard",complexity_score:2385.4,url:"https://github.com/salonyranjan/Retail-Customer-Insights-Dashboard--SQL---Python---Power-BI-"},
+  {name:"Rewind",complexity_score:155640.9,url:"https://github.com/salonyranjan/Rewind"},
+  {name:"RoleRadar",complexity_score:879.7,url:"https://github.com/salonyranjan/RoleRadar"},
+  {name:"RxScan-AI",complexity_score:17411.1,url:"https://github.com/salonyranjan/RxScan-AI"},
+  {name:"Salony-s-Fitness-Club",complexity_score:136552.4,url:"https://github.com/salonyranjan/Salony-s-Fitness-Club"},
+  {name:"salonyranjan",complexity_score:69138.2,url:"https://github.com/salonyranjan/salonyranjan"},
+  {name:"salonyranjan.github.io",complexity_score:67,url:"https://github.com/salonyranjan/salonyranjan.github.io"},
+  {name:"SkillBridge-AI",complexity_score:23903.8,url:"https://github.com/salonyranjan/SkillBridge-AI"},
+  {name:"sonic-prep",complexity_score:129381.1,url:"https://github.com/salonyranjan/sonic-prep"},
+  {name:"VertexFlow",complexity_score:348743.7,url:"https://github.com/salonyranjan/VertexFlow"},
+  {name:"Z-Axis-Cloud",complexity_score:475.4,url:"https://github.com/salonyranjan/Z-Axis-Cloud"},
+  {name:"ZenithRAG",complexity_score:314768.7,url:"https://github.com/salonyranjan/ZenithRAG"},
+];
+
+// ── Category classifier ───────────────────────────────────────────────────────
+const CATS = {
+  research: {color:0xa78bfa,hex:'#a78bfa',radius:1.8},
+  tool:     {color:0xfbbf24,hex:'#fbbf24',radius:1.2},
+  design:   {color:0x34d399,hex:'#34d399',radius:1.3},
+  writing:  {color:0xff6b9d,hex:'#ff6b9d',radius:1.0},
+  project:  {color:0x00ffcc,hex:'#00ffcc',radius:1.4},
+};
+function classify(name,score){
+  const n=name.toLowerCase();
+  if(n.includes('rag')||n.includes('ai')||n.includes('mediquery')||n.includes('rxscan')||n.includes('skillbridge')||score>250000) return 'research';
+  if(n.includes('dashboard')||n.includes('scan')||n.includes('radar')||n.includes('insights')) return 'tool';
+  if(n.includes('grid')||n.includes('flow')||n.includes('vertex')||n.includes('z-axis')) return 'design';
+  if(n.includes('whisper')||n.includes('rewind')||n.includes('salony')) return 'writing';
+  return 'project';
+}
+
+// Assign categories and normalize radius by complexity
+const maxScore = Math.max(...RAW.map(d=>d.complexity_score));
+const NODES = RAW.map((d,i)=>{
+  const cat = classify(d.name,d.complexity_score);
+  const cfg = CATS[cat];
+  const r   = cfg.radius * (0.7 + 0.8*(d.complexity_score/maxScore));
+  return {...d,cat,cfg,r,
+    x:(Math.random()-.5)*60,y:(Math.random()-.5)*60,z:(Math.random()-.5)*60,
+    vx:0,vy:0,vz:0};
+});
+
+// Legend
+const legEl = document.getElementById('legend-items');
+Object.entries(CATS).forEach(([cat,cfg])=>{
+  legEl.innerHTML+=`<div class="leg-item">
+    <div class="leg-dot" style="background:${cfg.hex};box-shadow:0 0 6px ${cfg.hex}"></div>
+    <span class="leg-name">${cat}</span></div>`;
+});
+document.getElementById('node-count').textContent=`${NODES.length} nodes · force-directed · 3D`;
+
+// ── Force simulation (manual 3D, no d3 needed) ───────────────────────────────
+const LINKS=[];
+for(let i=0;i<NODES.length;i++)
+  for(let j=i+1;j<NODES.length;j++)
+    if(NODES[i].cat===NODES[j].cat||Math.random()<0.06) LINKS.push([i,j]);
+
+function runForce(steps){
+  for(let s=0;s<steps;s++){
+    // Repulsion
+    for(let i=0;i<NODES.length;i++){
+      for(let j=i+1;j<NODES.length;j++){
+        const dx=NODES[i].x-NODES[j].x,dy=NODES[i].y-NODES[j].y,dz=NODES[i].z-NODES[j].z;
+        const d2=dx*dx+dy*dy+dz*dz+0.01;
+        const f=800/d2;
+        const mx=dx/Math.sqrt(d2)*f,my=dy/Math.sqrt(d2)*f,mz=dz/Math.sqrt(d2)*f;
+        NODES[i].vx+=mx;NODES[i].vy+=my;NODES[i].vz+=mz;
+        NODES[j].vx-=mx;NODES[j].vy-=my;NODES[j].vz-=mz;
+      }
+    }
+    // Attraction on links
+    for(const [a,b] of LINKS){
+      const dx=NODES[b].x-NODES[a].x,dy=NODES[b].y-NODES[a].y,dz=NODES[b].z-NODES[a].z;
+      const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
+      const f=(d-25)*0.02;
+      NODES[a].vx+=dx/d*f;NODES[a].vy+=dy/d*f;NODES[a].vz+=dz/d*f;
+      NODES[b].vx-=dx/d*f;NODES[b].vy-=dy/d*f;NODES[b].vz-=dz/d*f;
+    }
+    // Center gravity
+    for(const n of NODES){
+      n.vx-=n.x*.01;n.vy-=n.y*.01;n.vz-=n.z*.01;
+      n.vx*=.8;n.vy*=.8;n.vz*=.8;
+      n.x+=n.vx;n.y+=n.vy;n.z+=n.vz;
+    }
+  }
+}
+runForce(120);
+
+// ── Three.js setup ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color('#050510');
+scene.fog = new THREE.Fog('#050510',150,450);
+
+const camera = new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,1000);
+camera.position.set(0,0,160);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff,1.5));
+const pl1=new THREE.PointLight(0x00ffcc,2,120);scene.add(pl1);
+const pl2=new THREE.PointLight(0x0088ff,1,300);pl2.position.set(40,40,40);scene.add(pl2);
+const pl3=new THREE.PointLight(0xff6b9d,.8,300);pl3.position.set(-40,-40,20);scene.add(pl3);
+
+// ── Orbit controls (manual, clean) ───────────────────────────────────────────
+const orbit={
+  theta:0,phi:Math.PI/2,radius:160,
+  panX:0,panY:0,
+  dragging:false,panning:false,
+  lastX:0,lastY:0,
+  downX:0,downY:0, // for click discrimination
+  wasDrag:false,
+  autoRotate:true,
+};
+
+function updateCamera(){
+  const x=orbit.radius*Math.sin(orbit.phi)*Math.sin(orbit.theta);
+  const y=orbit.radius*Math.cos(orbit.phi);
+  const z=orbit.radius*Math.sin(orbit.phi)*Math.cos(orbit.theta);
+  camera.position.set(x+orbit.panX,y+orbit.panY,z);
+  camera.lookAt(orbit.panX,orbit.panY,0);
+}
+updateCamera();
+
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+canvas.addEventListener('pointerdown',e=>{
+  orbit.dragging=true;
+  orbit.panning=(e.button===2||e.button===1);
+  orbit.lastX=e.clientX;orbit.lastY=e.clientY;
+  orbit.downX=e.clientX;orbit.downY=e.clientY;
+  orbit.wasDrag=false;
+  orbit.autoRotate=false;
+});
+
+window.addEventListener('pointermove',e=>{
+  if(!orbit.dragging) return;
+  const dx=e.clientX-orbit.lastX,dy=e.clientY-orbit.lastY;
+  if(orbit.panning){
+    const pan=orbit.radius*.001;
+    orbit.panX-=dx*pan;orbit.panY+=dy*pan;
+  } else {
+    orbit.theta-=dx*.005;
+    orbit.phi=Math.max(.1,Math.min(Math.PI-.1,orbit.phi+dy*.005));
+  }
+  orbit.lastX=e.clientX;orbit.lastY=e.clientY;
+  const totalDx=e.clientX-orbit.downX,totalDy=e.clientY-orbit.downY;
+  if(Math.sqrt(totalDx*totalDx+totalDy*totalDy)>4) orbit.wasDrag=true;
+  updateCamera();
+});
+
+window.addEventListener('pointerup',e=>{
+  if(!orbit.dragging){orbit.wasDrag=false;return;}
+  orbit.dragging=false;
+  if(!orbit.wasDrag) handleClick(e); // ← REAL CLICK
+  orbit.wasDrag=false;
+  setTimeout(()=>orbit.autoRotate=true,2000);
+});
+
+canvas.addEventListener('wheel',e=>{
+  orbit.radius=Math.max(30,Math.min(350,orbit.radius+e.deltaY*.15));
+  updateCamera();
+  e.preventDefault();
+},{passive:false});
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ── Raycaster for click ───────────────────────────────────────────────────────
+const raycaster=new THREE.Raycaster();
+const mouse2=new THREE.Vector2();
+// Map from mesh uuid → node index
+const meshToNode=new Map();
+
+function handleClick(e){
+  const rect=canvas.getBoundingClientRect();
+  mouse2.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse2.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse2,camera);
+  const hits=raycaster.intersectObjects(hitMeshes);
+  if(!hits.length) return;
+  const idx=meshToNode.get(hits[0].object.uuid);
+  if(idx===undefined) return;
+  const node=NODES[idx];
+  window.open(node.url,'_blank','noopener,noreferrer');
+}
+
+// ── Build node meshes ─────────────────────────────────────────────────────────
+const hitMeshes=[];
+const sphereMeshes=[];
+const glowMeshes=[];
+const nodeMeshGroups=[];
+
+const hitGeo = new THREE.SphereGeometry(1,12,12); // scaled per node
+const hitMat = new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.FrontSide});
+
+NODES.forEach((node,i)=>{
+  const {cfg,r}=node;
+
+  // Core sphere
+  const geo=new THREE.SphereGeometry(r,32,32);
+  const mat=new THREE.MeshStandardMaterial({
+    color:cfg.color,emissive:cfg.color,emissiveIntensity:2.5,
+    roughness:.15,metalness:.85,toneMapped:false
+  });
+  const sphere=new THREE.Mesh(geo,mat);
+  scene.add(sphere);
+  sphereMeshes.push(sphere);
+
+  // Glow sphere
+  const glowGeo=new THREE.SphereGeometry(r*2.2,16,16);
+  const glowMat=new THREE.MeshStandardMaterial({
+    color:cfg.color,emissive:cfg.color,emissiveIntensity:.3,
+    transparent:true,opacity:.07,depthWrite:false,side:THREE.FrontSide,
+    blending:THREE.AdditiveBlending
+  });
+  const glow=new THREE.Mesh(glowGeo,glowMat);
+  scene.add(glow);
+  glowMeshes.push(glow);
+
+  // Hit sphere (large, truly invisible)
+  const hit=new THREE.Mesh(
+    new THREE.SphereGeometry(r*3,12,12),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.FrontSide})
+  );
+  scene.add(hit);
+  hitMeshes.push(hit);
+  meshToNode.set(hit.uuid,i);
+
+  nodeMeshGroups.push({sphere,glow,hit,scale:1,targetScale:1,ringPhase:Math.random()*Math.PI*2});
+});
+
+// ── Edge lines ────────────────────────────────────────────────────────────────
+const edgeGeo=new THREE.BufferGeometry();
+const edgePos=new Float32Array(LINKS.length*6);
+edgeGeo.setAttribute('position',new THREE.BufferAttribute(edgePos,3));
+const edgeMat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false});
+const edgeLines=new THREE.LineSegments(edgeGeo,edgeMat);
+scene.add(edgeLines);
+
+function updateEdges(){
+  const pos=edgeGeo.attributes.position.array;
+  for(let i=0;i<LINKS.length;i++){
+    const a=NODES[LINKS[i][0]],b=NODES[LINKS[i][1]];
+    pos[i*6]=a.x;pos[i*6+1]=a.y;pos[i*6+2]=a.z;
+    pos[i*6+3]=b.x;pos[i*6+4]=b.y;pos[i*6+5]=b.z;
+  }
+  edgeGeo.attributes.position.needsUpdate=true;
+}
+
+// ── Neural background plexus ──────────────────────────────────────────────────
+const PCOUNT=120;
+const pPos=new Float32Array(PCOUNT*3);
+const pVel=new Float32Array(PCOUNT*3);
+for(let i=0;i<PCOUNT;i++){
+  pPos[i*3]=(Math.random()-.5)*300;pPos[i*3+1]=(Math.random()-.5)*300;pPos[i*3+2]=(Math.random()-.5)*300;
+  pVel[i*3]=(Math.random()-.5)*.12;pVel[i*3+1]=(Math.random()-.5)*.12;pVel[i*3+2]=(Math.random()-.5)*.12;
+}
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pMesh=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.7,color:0x00ffcc,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+scene.add(pMesh);
+
+const plGeo=new THREE.BufferGeometry();
+const plMesh=new THREE.LineSegments(plGeo,new THREE.LineBasicMaterial({color:0xa78bfa,transparent:true,opacity:.13,depthWrite:false,blending:THREE.AdditiveBlending}));
+scene.add(plMesh);
+
+function updatePlexus(){
+  for(let i=0;i<PCOUNT;i++){
+    pPos[i*3]+=pVel[i*3];pPos[i*3+1]+=pVel[i*3+1];pPos[i*3+2]+=pVel[i*3+2];
+    if(Math.abs(pPos[i*3])>150)pVel[i*3]*=-1;
+    if(Math.abs(pPos[i*3+1])>150)pVel[i*3+1]*=-1;
+    if(Math.abs(pPos[i*3+2])>150)pVel[i*3+2]*=-1;
+  }
+  pGeo.attributes.position.needsUpdate=true;
+  const lp=[];
+  for(let i=0;i<PCOUNT;i++) for(let j=i+1;j<PCOUNT;j++){
+    const dx=pPos[i*3]-pPos[j*3],dy=pPos[i*3+1]-pPos[j*3+1],dz=pPos[i*3+2]-pPos[j*3+2];
+    if(dx*dx+dy*dy+dz*dz<1100) lp.push(pPos[i*3],pPos[i*3+1],pPos[i*3+2],pPos[j*3],pPos[j*3+1],pPos[j*3+2]);
+  }
+  plGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(lp),3));
+}
+
+// ── Hover detection (on mousemove, no click involved) ────────────────────────
+const hoverRay=new THREE.Raycaster();
+const hoverMouse=new THREE.Vector2();
+let hoveredIdx=-1;
+
+const tooltip=document.getElementById('tooltip');
+const tipCat=document.getElementById('tip-cat');
+const tipName=document.getElementById('tip-name');
+const tipDesc=document.getElementById('tip-desc');
+const tipTags=document.getElementById('tip-tags');
+
+const TAGS_MAP={
+  research:['AI','ML','RAG'],tool:['Dashboard','Analytics'],
+  design:['3D','WebGL','UI'],writing:['Docs','Portfolio'],project:['Fullstack','Dev']
+};
+
+canvas.addEventListener('mousemove',e=>{
+  if(orbit.dragging)return;
+  const rect=canvas.getBoundingClientRect();
+  hoverMouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  hoverMouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  hoverRay.setFromCamera(hoverMouse,camera);
+  const hits=hoverRay.intersectObjects(hitMeshes);
+  if(hits.length){
+    const idx=meshToNode.get(hits[0].object.uuid);
+    if(idx!==undefined && idx!==hoveredIdx){
+      hoveredIdx=idx;
+      const n=NODES[idx];
+      tipCat.textContent=n.cat;
+      tipCat.style.color=n.cfg.hex+'aa';
+      tipName.textContent=n.name;
+      tipDesc.textContent=`Complexity: ${Math.round(n.complexity_score).toLocaleString()}`;
+      const tags=TAGS_MAP[n.cat]||['Dev'];
+      tipTags.innerHTML=tags.map(t=>`<span class="tip-tag" style="color:${n.cfg.hex}88;border:1px solid ${n.cfg.hex}33">${t}</span>`).join('');
+      document.body.style.cursor='pointer';
+    }
+    // Position tooltip
+    const tx=e.clientX+20,ty=e.clientY-10;
+    tooltip.style.left=(tx>innerWidth-280?e.clientX-220:tx)+'px';
+    tooltip.style.top=ty+'px';
+    tooltip.style.borderLeft=`3px solid ${NODES[idx!==undefined?idx:hoveredIdx]?.cfg.hex||'#00ffcc'}`;
+    tooltip.querySelector('.tip-box').style.border=`1px solid ${NODES[idx!==undefined?idx:hoveredIdx]?.cfg.hex||'#00ffcc'}44`;
+    tooltip.querySelector('.tip-box').style.borderLeft=`3px solid ${NODES[idx!==undefined?idx:hoveredIdx]?.cfg.hex||'#00ffcc'}`;
+    tooltip.classList.add('show');
+  } else {
+    hoveredIdx=-1;
+    tooltip.classList.remove('show');
+    document.body.style.cursor='default';
+  }
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  hoveredIdx=-1;tooltip.classList.remove('show');document.body.style.cursor='default';
+});
+
+// ── Clock & FPS ───────────────────────────────────────────────────────────────
+const clockEl=document.getElementById('clock');
+const fpsEl=document.getElementById('fps-counter');
+setInterval(()=>clockEl.textContent=new Date().toLocaleTimeString('en-US',{hour12:false}),1000);
+let frames=0,lastFpsTime=performance.now();
+
+// ── Sprite labels (canvas texture) ───────────────────────────────────────────
+function makeLabel(text,color){
+  const c=document.createElement('canvas');
+  c.width=256;c.height=48;
+  const ctx=c.getContext('2d');
+  ctx.font='500 15px "JetBrains Mono", monospace';
+  ctx.fillStyle=color+'cc';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(text,128,24);
+  return new THREE.CanvasTexture(c);
+}
+
+const labelSprites=NODES.map(node=>{
+  const tex=makeLabel(node.name,node.cfg.hex);
+  const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
+  const sprite=new THREE.Sprite(mat);
+  sprite.scale.set(18,3.5,1);
+  scene.add(sprite);
+  return sprite;
+});
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+let t=0;
+const clock=new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta();
+  t+=dt;
+
+  // Auto-rotate
+  if(orbit.autoRotate && !orbit.dragging){
+    orbit.theta+=.003;
+    updateCamera();
+  }
+
+  // Update node positions & scales
+  for(let i=0;i<NODES.length;i++){
+    const n=NODES[i];
+    const g=nodeMeshGroups[i];
+    const isHov=(i===hoveredIdx);
+    g.targetScale=isHov?1.45:1;
+    g.scale+=(g.targetScale-g.scale)*.12;
+
+    const pos=new THREE.Vector3(n.x,n.y,n.z);
+    g.sphere.position.copy(pos);g.glow.position.copy(pos);g.hit.position.copy(pos);
+    g.sphere.scale.setScalar(g.scale);
+    g.glow.scale.setScalar(g.scale);
+
+    // Pulse emissive on hover
+    g.sphere.material.emissiveIntensity=isHov?4.5:(2.5+Math.sin(t*1.5+g.ringPhase)*.3);
+
+    // Label
+    labelSprites[i].position.set(n.x,n.y+n.r*g.scale+2.5,n.z);
+    labelSprites[i].material.opacity=isHov?1:.75;
+  }
+
+  updateEdges();
+  updatePlexus();
+
+  renderer.render(scene,camera);
+
+  // FPS
+  frames++;
+  const now=performance.now();
+  if(now-lastFpsTime>=1000){
+    const fps=Math.round(frames*1000/(now-lastFpsTime));
+    fpsEl.textContent=`${fps} FPS`;
+    fpsEl.style.color=fps>50?'#00ffcc88':fps>30?'#fbbf2488':'#ff6b6b88';
+    frames=0;lastFpsTime=now;
+  }
+}
+animate();
+</script>
+</body>
+</html>
