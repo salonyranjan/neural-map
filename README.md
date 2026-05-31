@@ -114,11 +114,10 @@ Neural Map is a cinematic, spatial experience — built to communicate engineeri
 ### 🌐 The Knowledge Graph — *Full 3D View*
 
 <div align="center">
-  <img src="./assets/demo.gif" width="100%" alt="Neural Map — 3D Knowledge Graph"/>
   <img src="./assets/1.png" width="100%" alt="Neural Map — Node Cluster View"/>
-  <img src="./assets/2.png" width="100%" alt="Neural Map — Category Filter"/>
-  <img src="./assets/3.png" width="100%" alt="Neural Map — Project Panel"/>
-  <img src="./assets/4.png" width="100%" alt="Neural Map — Search Active"/>
+  <img src="./assets/2.png" width="700" alt="Neural Map — Category Filter"/>
+  <img src="./assets/3.png" width="350" alt="Neural Map — Project Panel"/>
+  <img src="./assets/4.png" width="350" alt="Neural Map — Search Active"/>
   <p><i>Live force-directed graph — orbit, pan, and zoom through 23 nodes with custom physics.</i></p>
 </div>
 
