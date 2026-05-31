@@ -5,13 +5,6 @@
 <!-- ══════════════════════════════════════════════════════════════════ -->
 
 <img src="https://capsule-render.vercel.app/api?type=venom&color=0:000000,25:c8ff00,55:38bdf8,80:ff6e3c,100:000000&height=260&section=header&text=🌐%20NEURAL%20MAP&fontSize=84&fontColor=ffffff&fontAlignY=52&animation=fadeIn&stroke=c8ff00&strokeWidth=3&desc=3D%20Force-Directed%20Knowledge%20Graph%20%7C%20Vanilla%20Three.js%20%7C%20Zero%20Dependencies%20%7C%2060%20FPS&descSize=17&descAlignY=74&descColor=38bdf8" />
-<picture>
-  <img
-    src="./assets/banner.svg"
-    alt="Neural Map — 3D Knowledge Graph Portfolio"
-    width="100%"
-  />
-</picture>
 
 <br/>
 
